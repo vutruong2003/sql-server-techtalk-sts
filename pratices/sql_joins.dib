@@ -1,0 +1,188 @@
+#!markdown
+
+<h1>SQL Server Joins</h1>
+
+#!markdown
+
+<h2>References</h2>
+
+<a href="https://docs.microsoft.com/en-us/sql/relational-databases/performance/joins" target="_blank">https://docs.microsoft.com/en-us/sql/relational-databases/performance/joins</a>
+
+#!markdown
+
+<code>Initialize infrastructure</code>
+
+#!csharp
+
+#r "nuget:Microsoft.DotNet.Interactive.SqlServer,*-*"
+
+#!markdown
+
+<code>Connect database</code>
+
+#!csharp
+
+#!connect mssql --kernel-name sampleDataBase "Persist Security Info=False; Integrated Security=true; Initial Catalog=SampleDatabase; Server=."
+
+#!markdown
+
+<p>In a relational database, data is distributed in multiple logical tables. To get a complete meaningful set of data, you need to query data from these tables using joins. SQL Server supports many kinds of joins, including inner join, left join, right join, full outer join, and cross join. Each join type specifies how SQL Server uses data from one table to select rows in another table.</p>
+
+#!markdown
+
+<b>Syntax</b><br/>
+<code>FROM first_table < join_type > second_table [ ON ( join_condition ) ]</code>
+
+#!markdown
+
+<h3>Inner Join</h3>
+
+#!markdown
+
+<p>Inner join produces a data set that includes rows from the left table, matching rows from the right table.</p>
+<div style="width: 300px">
+    <img src="imgs/joins/innerJoin.jpg"></img>
+</div>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.categoryId as RefId, c.id as CategoryId, c.[name] as Category
+FROM [production].product as p
+	INNER JOIN [production].category as c ON p.categoryId = c.id
+
+#!markdown
+
+<h3>Ful Outer Join</h3>
+
+#!markdown
+
+<p>The full outer join or full join returns a result set that contains all rows from both left and right tables, with the matching rows from both sides where available. In case there is no match, the missing side will have NULL values.</p>
+<div style="width: 300px">
+    <img src="imgs/joins/FullOuterJoin.jpg"></img>
+</div>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.categoryId as RefId, c.id as CategoryId, c.[name] as Category
+FROM [production].product as p
+	FULL OUTER JOIN [production].category as c ON p.categoryId = c.id
+
+#!markdown
+
+<p>You can exclude rows that are appeared in both tables by adding a <code>Where</code> clause.</p>
+<div style="width: 300px">
+    <img src="imgs/joins/ExistLeftOrRightOnly.jpg"></img>
+</div>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.categoryId as RefId, c.id as CategoryId, c.[name] as Category
+FROM [production].product as p
+	FULL OUTER JOIN [production].category as c ON p.categoryId = c.id
+WHERE p.categoryId IS NULL
+    OR c.id IS NULL
+
+#!markdown
+
+<h3>Half Outer Join</h3>
+<div><b>Left Join</b></div>
+
+#!markdown
+
+<p>Inner join produces a data set that includes rows from the left table, matching rows from the right table.</p>
+<div style="width: 300px">
+    <img src="imgs/joins/LeftJoin.jpg">
+    </img>
+</div>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.categoryId as RefId, c.id as CategoryId, c.[name] as Category
+FROM [production].product as p
+	LEFT OUTER JOIN [production].category as c ON p.categoryId = c.id
+
+#!markdown
+
+<p>You can get rows that are available only in the left table by using <code>Where</code> clause.</p>
+<div style="width: 300px">
+    <img src="imgs/joins/LeftJoinWithLeftOnly.jpg">
+    </img>
+</div>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.categoryId as RefId, c.id as CategoryId, c.[name] as Category
+FROM [production].product as p
+	LEFT OUTER JOIN [production].category as c ON p.categoryId = c.id
+WHERE c.id IS NULL
+
+#!markdown
+
+<b>Right Join</b>
+
+#!markdown
+
+<p>Inner join produces a data set that includes rows from the left table, matching rows from the right table.</p>
+<div style="width: 300px">
+    <img src="imgs/joins/RightJoin.jpg">
+    </img>
+</div>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.categoryId as RefId, c.id as CategoryId, c.[name] as Category
+FROM [production].product as p
+	RIGHT OUTER JOIN [production].category as c ON p.categoryId = c.id
+
+#!markdown
+
+<p>Same with left join, you can get the rows that are available only in the right table using  <code>Where</code>  clause.</p>
+<div style="width: 300px">
+    <img src="imgs/joins/RightJoinWithRightOnly.jpg">
+    </img>
+</div>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.categoryId as RefId, c.id as CategoryId, c.[name] as Category
+FROM [production].product as p
+	RIGHT OUTER JOIN [production].category as c ON p.categoryId = c.id
+WHERE p.categoryId IS NULL
+
+#!markdown
+
+<h3>Cross Join</h3>
+
+#!markdown
+
+<p>The CROSS JOIN joined every row from the first table (T1) with every row from the second table (T2).</p>
+<i style="color: yellow">Unlike the INNER JOIN or LEFT JOIN, the cross join does not establish a relationship between the joined tables.</i>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.categoryId as RefId, c.id as CategoryId, c.[name] as Category
+FROM [production].product as p
+	CROSS JOIN [production].category as c
+
+#!markdown
+
+<h3>Self Join</h3>
+
+#!markdown
+
+<p>A self join allows you to join a table to itself. It helps query hierarchical data or compare rows within the same table.</p>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT p.id as ProductId, p.[name] as ProductName, p.baseProductId as RefId, bp.id as baseProductId, bp.[Name] as BaseProductName
+FROM [production].product as p
+	LEFT JOIN [production].product as bp ON p.baseProductId = bp.id

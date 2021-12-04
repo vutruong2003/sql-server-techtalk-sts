@@ -1,0 +1,244 @@
+#!markdown
+
+<h1>SQL Server Functions</h1>
+
+#!markdown
+
+<ul>
+    <li><a href="https://docs.microsoft.com/en-us/sql/relational-databases/user-defined-functions/user-defined-functions">https://docs.microsoft.com/en-us/sql/relational-databases/user-defined-functions/user-defined-functions</a></li>
+</ul>
+
+#!markdown
+
+<h3>Built-in Function Determinism</h3>
+
+#!markdown
+
+<style>
+    .row {
+        display: flex;
+        margin-bottom: 20px;
+        max-width: 800px;
+    }
+</style>
+The following built-in functions from categories of built-in functions other than string functions are always
+    deterministic.
+<section class="row">
+    <div class="column">
+        <p>ABS</p>
+    </div>
+    <div class="column">
+        <p>DATEDIFF</p>
+    </div>
+    <div class="column">
+        <p>POWER</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>ACOS</p>
+    </div>
+    <div class="column">
+        <p>DAY</p>
+    </div>
+    <div class="column">
+        <p>RADIANS</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>ASIN</p>
+    </div>
+    <div class="column">
+        <p>DEGREES</p>
+    </div>
+    <div class="column">
+        <p>ROUND</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>ATAN</p>
+    </div>
+    <div class="column">
+        <p>EXP</p>
+    </div>
+    <div class="column">
+        <p>SIGN</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>ATN2</p>
+    </div>
+    <div class="column">
+        <p>FLOOR</p>
+    </div>
+    <div class="column">
+        <p>SIN</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>CEILING</p>
+    </div>
+    <div class="column">
+        <p>ISNULL</p>
+    </div>
+    <div class="column">
+        <p>SQUARE</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>COALESCE</p>
+    </div>
+    <div class="column">
+        <p>ISNUMERIC</p>
+    </div>
+    <div class="column">
+        <p>SQRT</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>COS</p>
+    </div>
+    <div class="column">
+        <p>LOG</p>
+    </div>
+    <div class="column">
+        <p>TAN</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>COT</p>
+    </div>
+    <div class="column">
+        <p>LOG10</p>
+    </div>
+    <div class="column">
+        <p>YEAR</p>
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>DATALENGTH</p>
+    </div>
+    <div class="column">
+        <p>MONTH</p>
+    </div>
+    <div class="column">
+    </div>
+</section>
+<section class="row">
+    <div class="column">
+        <p>DATEADD</p>
+    </div>
+    <div class="column">
+        <p>NULLIF</p>
+    </div>
+    <div class="column">
+    </div>
+</section>
+
+#!markdown
+
+<h3>Create</h3>
+
+#!markdown
+
+1. Scalar Functions
+
+#!sql
+
+CREATE FUNCTION dbo.ufnGetInventoryStock(@ProductID int)  
+RETURNS int   
+AS   
+-- Returns the stock level for the product.  
+BEGIN  
+    DECLARE @ret int;  
+    SELECT @ret = SUM(p.Quantity)   
+    FROM Production.ProductInventory p   
+    WHERE p.ProductID = @ProductID   
+        AND p.LocationID = '6';  
+     IF (@ret IS NULL)   
+        SET @ret = 0;  
+    RETURN @ret;  
+END; 
+
+#!markdown
+
+2. Table-valued Functions
+
+#!sql
+
+CREATE FUNCTION Sales.ufn_SalesByStore (@storeid int)  
+RETURNS TABLE  
+AS  
+RETURN   
+(  
+    SELECT P.ProductID, P.Name, SUM(SD.LineTotal) AS 'Total'  
+    FROM Production.Product AS P   
+    JOIN Sales.SalesOrderDetail AS SD ON SD.ProductID = P.ProductID  
+    JOIN Sales.SalesOrderHeader AS SH ON SH.SalesOrderID = SD.SalesOrderID  
+    JOIN Sales.Customer AS C ON SH.CustomerID = C.CustomerID  
+    WHERE C.StoreID = @storeid  
+    GROUP BY P.ProductID, P.Name  
+);  
+
+#!markdown
+
+<h3>View User-defined functions</h3>
+
+#!sql
+
+SELECT OBJECT_DEFINITION (OBJECT_ID('dbo.ufnGetProductDealerPrice')) AS ObjectDefinition;  
+GO  
+
+#!sql
+
+SELECT sm.object_id,   
+   OBJECT_NAME(sm.object_id) AS object_name,   
+   o.type,   
+   o.type_desc,   
+   sm.definition,  
+   sm.uses_ansi_nulls,  
+   sm.uses_quoted_identifier,  
+   sm.is_schema_bound,  
+   sm.execute_as_principal_id  
+FROM sys.sql_modules AS sm  
+JOIN sys.objects AS o ON sm.object_id = o.object_id  
+ORDER BY o.type;  
+GO  
+
+#!markdown
+
+<h3>Alter</h3>
+
+#!sql
+
+ALTER FUNCTION dbo.ufnGetInventoryStock(@ProductID int)  
+RETURNS int   
+AS   
+-- Returns the stock level for the product.  
+BEGIN  
+    DECLARE @ret int;  
+    SELECT @ret = SUM(p.Quantity)   
+    FROM Production.ProductInventory p   
+    WHERE p.ProductID = @ProductID   
+        AND p.LocationID = '6';  
+     IF (@ret IS NULL)   
+        SET @ret = 0;  
+    RETURN @ret;  
+END; 
+
+#!markdown
+
+<h3>Delete</h3>
+
+#!sql
+
+DROP FUNCTION Sales.fn_SalesByStore;  
+GO  

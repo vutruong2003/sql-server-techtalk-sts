@@ -1,0 +1,152 @@
+#!markdown
+
+# SQL SERVER INDEXES
+
+#!markdown
+
+<ul>
+    <li><a href="https://docs.microsoft.com/en-us/sql/relational-databases/indexes/indexes">https://docs.microsoft.com/en-us/sql/relational-databases/indexes/indexes</a></li>
+</ul>
+
+#!markdown
+
+## Sample B-tree structure
+
+#!markdown
+
+<div style="display: flex;">
+    <img style="padding: 5px; max-width: 800px" src="imgs/indexes/b-tree.jpg"/>
+</div>
+
+#!markdown
+
+## Structuring indexes
+
+#!markdown
+
+<div style="display: flex;">
+    <img style="padding: 5px; max-width: 800px" src="imgs/indexes/index_check_dg.png"/>
+</div>
+
+#!markdown
+
+> <i>Basically, the goal is to index the major searching and ordering columns.</i>
+
+#!markdown
+
+## Create
+
+#!markdown
+
+1. Clustered Indexes
+
+#!sql
+
+CREATE CLUSTERED INDEX IX_Employees_ID   
+    ON dbo.Employees (ID);   
+GO  
+
+#!markdown
+
+2. Nonclustered Indexes
+
+#!sql
+
+CREATE NONCLUSTERED INDEX IX_EmployeeRoom_RoomID   
+    ON dbo.Employees (RoomId);   
+GO
+
+#!markdown
+
+3. Unique Indexes
+
+#!sql
+
+CREATE UNIQUE INDEX AK_UnitMeasure_Name   
+   ON Production.UnitMeasure (Name);   
+GO  
+
+#!markdown
+
+4. Filtered Indexes
+
+#!sql
+
+CREATE NONCLUSTERED INDEX FIBillOfMaterialsWithEndDate  
+    ON Production.BillOfMaterials (ComponentID, StartDate)  
+    WHERE EndDate IS NOT NULL;  
+GO  
+
+#!markdown
+
+5. With Included Columns
+
+#!sql
+
+CREATE NONCLUSTERED INDEX IX_Address_PostalCode  
+ON Person.Address (PostalCode)  
+INCLUDE (AddressLine1, AddressLine2, City, StateProvinceID);  
+GO 
+
+#!markdown
+
+## Delete
+
+#!sql
+
+DROP INDEX IX_EmployeeRoom_RoomID   
+    ON dbo.Employees;
+GO
+
+#!markdown
+
+## Enable / Disable
+
+#!markdown
+
+1. Disable a trigger
+
+#!sql
+
+ALTER INDEX IX_Employee_OrganizationLevel_OrganizationNode ON HumanResources.Employee  
+DISABLE;  
+GO
+
+#!markdown
+
+2. Disable all triggers on a table
+
+#!sql
+
+ALTER INDEX ALL ON HumanResources.Employee  
+DISABLE; 
+GO 
+
+#!markdown
+
+3. Enable a trigger
+
+#!sql
+
+ALTER INDEX IX_Employee_OrganizationLevel_OrganizationNode ON HumanResources.Employee  
+REBUILD;   
+GO 
+
+#!markdown
+
+4. Enable all triggers on a table
+
+#!sql
+
+ALTER INDEX ALL ON HumanResources.Employee  
+REBUILD;  
+GO  
+
+#!markdown
+
+## Rename
+
+#!sql
+
+EXEC sp_rename N'Purchasing.ProductVendor.IX_ProductVendor_VendorID', N'IX_VendorID', N'INDEX';   
+GO 

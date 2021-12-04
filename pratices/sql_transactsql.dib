@@ -1,0 +1,265 @@
+#!markdown
+
+# Transact SQL
+
+#!markdown
+
+## Initialize infrastructure 
+
+#!csharp
+
+#r "nuget:Microsoft.DotNet.Interactive.SqlServer,*-*"
+
+#!markdown
+
+<code>Connect database</code>
+
+#!csharp
+
+#!connect mssql --kernel-name masterDataBase "Persist Security Info=False; Integrated Security=true; Initial Catalog=master; Server=."
+
+#!csharp
+
+#!connect mssql --kernel-name sampleDataBase "Persist Security Info=False; Integrated Security=true; Initial Catalog=SampleDatabase2; Server=."
+
+#!csharp
+
+#!connect mssql --kernel-name masterDataBase3 "Data Source=127.0.0.1,1533;User ID=sa;Password=Password123;Initial Catalog=master;MultipleActiveResultSets=true"
+
+#!csharp
+
+#!connect mssql --kernel-name sampleDataBase3 "Data Source=127.0.0.1,1533;User ID=sa;Password=Password123;Initial Catalog=SampleDatabase;MultipleActiveResultSets=true"
+
+#!markdown
+
+## 1. Database
+
+#!markdown
+
+### a. Create
+
+#!sql
+
+#!sql-masterDataBase
+USE master;  
+GO  
+
+#!sql
+
+#!sql-masterDataBase
+CREATE DATABASE [SampleDatabase]
+    CONTAINMENT = NONE
+    ON  PRIMARY 
+        ( NAME = N'SampleDatabase', FILENAME = N'/var/opt/mssql/data/SampleDatabase.mdf' , SIZE = 8192KB , MAXSIZE = UNLIMITED, FILEGROWTH = 65536KB )
+    LOG ON 
+        ( NAME = N'SampleDatabase_log', FILENAME = N'/var/opt/mssql/data/SampleDatabase_log.ldf' , SIZE = 8192KB , MAXSIZE = 2048GB , FILEGROWTH = 65536KB )
+    WITH CATALOG_COLLATION = DATABASE_DEFAULT
+GO
+
+#!markdown
+
+### b. Drop
+
+#!sql
+
+#!sql-masterDataBase
+DROP DATABASE [SampleDatabase];
+GO
+
+#!markdown
+
+<i>In case you want to drop a running database:</i>
+
+#!sql
+
+#!sql-masterDataBase
+/* Delete Database Backup and Restore History from MSDB System Database */
+
+EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'SampleDatabase'
+GO
+
+/* Query to Get Exclusive Access of SQL Server Database before Dropping the Database  */
+
+USE [master]
+GO
+ALTER DATABASE [SampleDatabase] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+GO
+
+/* Query to Drop Database in SQL Server  */
+
+DROP DATABASE [SampleDatabase]
+GO
+
+#!markdown
+
+## 2. Schema
+
+#!markdown
+
+### a. Create
+
+#!sql
+
+#!sql-sampleDataBase
+CREATE SCHEMA production;
+GO
+
+CREATE SCHEMA sale;
+GO
+
+#!markdown
+
+### b. Drop
+
+#!sql
+
+#!sql-sampleDataBase
+DROP SCHEMA production;
+GO
+
+DROP SCHEMA sale;
+GO
+
+#!markdown
+
+## 3. Table
+
+#!markdown
+
+### a. Create
+
+#!sql
+
+#!sql-sampleDataBase
+CREATE TABLE [production].[category] (
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[name] [varchar](250) NOT NULL,
+    CONSTRAINT [PK_category] PRIMARY KEY CLUSTERED 
+    (
+        [id] ASC
+    ) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+#!sql
+
+#!sql-sampleDataBase
+CREATE TABLE [production].[product](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[name] [varchar](250) NOT NULL,
+	[categoryId] [int] NULL,
+	[baseProductId] [int] NULL,
+ CONSTRAINT [PK_product] PRIMARY KEY CLUSTERED 
+(
+	[id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [production].[product]  WITH CHECK ADD  CONSTRAINT [FK_product_category] FOREIGN KEY([id])
+REFERENCES [production].[category] ([id])
+GO
+
+ALTER TABLE [production].[product] CHECK CONSTRAINT [FK_product_category]
+GO
+
+ALTER TABLE [production].[product]  WITH CHECK ADD  CONSTRAINT [FK_product_product] FOREIGN KEY([baseProductId])
+REFERENCES [production].[product] ([id])
+GO
+
+ALTER TABLE [production].[product] CHECK CONSTRAINT [FK_product_product]
+GO
+
+#!markdown
+
+### b. Insert
+
+#!sql
+
+#!sql-sampleDataBase
+INSERT INTO production.category
+VALUES
+	('Bikes'),
+	('Car'),
+	('Ships'),
+	('Clothes'),
+	('Cleaners'),
+	('Fruits')
+
+#!sql
+
+#!sql-sampleDataBase
+INSERT INTO production.product
+VALUES
+	('Mountain Bikes', 1, null),
+	('Road Bikes', 1, null),
+	('Handlebars', null, null),
+	('Bottom Brackets', 5, null),
+	('Balls', null, null),
+	('Apples', 6, null)
+
+#!markdown
+
+<p>Query data from tables</p>
+
+#!sql
+
+#!sql-sampleDataBase
+SELECT id, [name] 
+FROM production.category;
+GO
+
+SELECT id, [name]
+FROM production.product;
+GO
+
+#!markdown
+
+### c. Update
+
+#!sql
+
+#!sql-sampleDataBase
+UPDATE production.category
+SET [name] = 'Cars'
+WHERE id = 2
+
+#!sql
+
+#!sql-sampleDataBase
+UPDATE production.product
+SET baseProductId = 1
+WHERE id = 2;
+GO
+
+UPDATE production.product
+SET baseProductId = 3
+WHERE id = 4;
+GO
+
+#!markdown
+
+### d. Delete
+
+#!sql
+
+#!sql-sampleDataBase
+DELETE FROM production.category
+WHERE id >= 7
+
+#!markdown
+
+### e. Drop
+
+#!markdown
+
+<i>Drop the table with foreign key first</i>
+
+#!sql
+
+#!sql-sampleDataBase
+DROP TABLE production.product;
+GO
+
+DROP TABLE production.category;
+GO

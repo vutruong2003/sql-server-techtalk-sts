@@ -1,0 +1,77 @@
+#!markdown
+
+<h1>SQL Server Stored Procedures</h1>
+
+#!markdown
+
+<ul>
+    <li><a href="https://docs.microsoft.com/en-us/sql/relational-databases/stored-procedures/stored-procedures-database-engine">https://docs.microsoft.com/en-us/sql/relational-databases/stored-procedures/stored-procedures-database-engine</a></li>
+</ul>
+
+#!markdown
+
+<h3>Create</h3>
+
+#!sql
+
+CREATE PROCEDURE HumanResources.uspGetEmployeesTest2   
+    @LastName nvarchar(50),   
+    @FirstName nvarchar(50)   
+AS   
+
+    SET NOCOUNT ON;  
+    SELECT FirstName, LastName, Department  
+    FROM HumanResources.vEmployeeDepartmentHistory  
+    WHERE FirstName = @FirstName AND LastName = @LastName  
+    AND EndDate IS NULL;  
+GO  
+
+#!markdown
+
+<h3>Execute</h3>
+
+#!sql
+
+EXECUTE HumanResources.uspGetEmployeesTest2 N'Ackerman', N'Pilar';  
+-- Or  
+EXEC HumanResources.uspGetEmployeesTest2 @LastName = N'Ackerman', @FirstName = N'Pilar';  
+GO  
+-- Or  
+EXECUTE HumanResources.uspGetEmployeesTest2 @FirstName = N'Pilar', @LastName = N'Ackerman';  
+GO  
+
+#!markdown
+
+<h3>Modify</h3>
+
+#!sql
+
+ALTER PROCEDURE HumanResources.uspGetEmployeesTest2   
+    @LastName nvarchar(50),   
+    @FirstName nvarchar(50)   
+AS   
+
+    SET NOCOUNT ON;  
+    SELECT FirstName, LastName, Department  
+    FROM HumanResources.vEmployeeDepartmentHistory  
+    WHERE FirstName = @FirstName AND LastName = @LastName
+    AND EndDate IS NOT NULL;  
+GO  
+
+#!markdown
+
+<h3>Delete</h3>
+
+#!sql
+
+DROP PROCEDURE HumanResources.uspGetEmployeesTest2;
+GO  
+
+#!markdown
+
+<h3>Recompile</h3>
+
+#!sql
+
+EXECUTE HumanResources.uspProductByVendor WITH RECOMPILE;  
+GO

@@ -1,0 +1,169 @@
+#!markdown
+
+# SQL Server Triggers
+
+#!markdown
+
+## Types of Triggers
+
+#!markdown
+
+<div style="display: flex;">
+    <img style="padding: 5px; max-width: 700px" src="imgs/triggers/trigger_types_dg.png"/>
+</div>
+
+#!markdown
+
+## DML Trigger workflow
+
+#!markdown
+
+<div style="display: flex;">
+    <img style="padding: 5px; max-width: 700px" src="imgs/triggers/trigger_dml_dg.jpg"/>
+</div>
+
+#!markdown
+
+## Development
+
+#!markdown
+
+### Trigger Template
+
+#!markdown
+
+<div style="display: flex;">
+    <img style="padding: 5px" src="imgs/triggers/dml_triggers.png"/>
+    <img style="padding: 5px" src="imgs/triggers/ddl_triggers.png"/>
+</div>
+
+#!markdown
+
+### UPDATE / INSERT Triggers
+
+#!sql
+
+CREATE TRIGGER TR_UPD_Category ON production.category
+FOR UPDATE, INSERT
+AS
+
+BEGIN
+	IF EXISTS(SELECT * FROM inserted WHERE [name] LIKE '%a%')
+	BEGIN
+		RAISERROR ('CANNOT UPDATE / INSERT CATEGORY WITH NAME CONTAINS ''a', 10, 1)
+		ROLLBACK TRANSACTION
+	END
+END
+
+#!markdown
+
+### DELETE Triggers
+
+#!sql
+
+CREATE TRIGGER TR_DEL_Product ON production.product
+FOR DELETE
+AS
+
+BEGIN
+	RAISERROR ('CANNOT DELETE CATEGORY', 10, 1)
+	ROLLBACK TRANSACTION
+END
+
+#!markdown
+
+### ALTER a Trigger
+
+#!sql
+
+ALTER TRIGGER production.TR_DEL_Product ON production.product
+INSTEAD OF DELETE
+AS
+
+BEGIN
+	SET NOCOUNT ON
+	DELETE production.product
+	WHERE id in (SELECT id FROM deleted) 
+		AND (categoryId IS NULL AND baseProductId IS NULL AND externalCategoryId IS NULL)
+END
+
+#!markdown
+
+### Enable / Disable Trigger
+
+#!markdown
+
+1. Disable a trigger
+
+#!sql
+
+DISABLE TRIGGER production.TR_DEL_Product ON production.product
+
+#!markdown
+
+2. Disable all triggers
+
+#!sql
+
+DISABLE TRIGGER ALL ON production.product
+
+#!markdown
+
+3. Enable a trigger
+
+#!sql
+
+ENABLE TRIGGER production.TR_DEL_Product ON production.product
+
+#!markdown
+
+4. Enable all triggers
+
+#!sql
+
+ENABLE TRIGGER ALL ON production.product
+
+#!markdown
+
+### DROP Trigger
+
+#!sql
+
+DROP TRIGGER production.TR_DEL_Product
+
+#!markdown
+
+### LOGON Trigger
+
+#!markdown
+
+#### 1. Create
+
+#!sql
+
+CREATE TRIGGER [track_logins] ON ALL SERVER
+FOR LOGON AS
+ 
+BEGIN
+  PRINT 'User login at ' + GETDATE()
+END
+
+#!markdown
+
+#### 2. Enable and disable
+
+#!sql
+
+ENABLE TRIGGER track_logins ON ALL SERVER
+GO
+ 
+DISABLE TRIGGER track_logins ON ALL SERVER
+GO
+
+#!markdown
+
+#### 3. Drop
+
+#!sql
+
+DROP TRIGGER track_logins ON ALL SERVER

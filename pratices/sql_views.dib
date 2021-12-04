@@ -1,0 +1,94 @@
+#!markdown
+
+<h1>SQL Server Views</h1>
+
+#!markdown
+
+<ul>
+    <li><a href="https://docs.microsoft.com/en-us/sql/relational-databases/views/views">https://docs.microsoft.com/en-us/sql/relational-databases/views/views</a></li>
+</ul>
+
+#!markdown
+
+<h3>Create</h3>
+
+#!sql
+
+CREATE VIEW HumanResources.EmployeeHireDate  
+AS  
+SELECT p.FirstName, p.LastName, e.HireDate  
+FROM HumanResources.Employee AS e JOIN Person.Person AS  p  
+ON e.BusinessEntityID = p.BusinessEntityID ;   
+GO  
+
+#!markdown
+
+<h3>Modify</h3>
+
+#!sql
+
+ALTER VIEW HumanResources.EmployeeHireDate  
+AS  
+SELECT p.FirstName, p.LastName, e.HireDate  
+FROM HumanResources.Employee AS e JOIN Person.Person AS  p  
+ON e.BusinessEntityID = p.BusinessEntityID  
+WHERE HireDate < CONVERT(DATETIME,'20020101',101) ;   
+GO  
+
+#!markdown
+
+<h3>Rename</h3>
+<code>If you rename a view, code and applications that depend on the view may fail. These include other views, queries, stored procedures, user-defined functions, and client applications. Note that these failures will cascade.</code>
+
+#!markdown
+
+While you can use sp_rename to change the name of the view, we recommend that you delete the existing view and then re-create it with the new name.
+
+#!markdown
+
+<h3>Delete</h3>
+
+#!sql
+
+DROP VIEW HumanResources.EmployeeHireDate;  
+GO  
+
+#!markdown
+
+<h3>Indexed View</h3>
+
+#!markdown
+
+The following steps are required to create an indexed view and are critical to the successful implementation of the indexed view:
+<ul style="line-height: 2">
+    <li>Verify the SET options are correct for all existing tables that will be referenced in the view.</li>
+    <li>Verify that the SET options for the session are set correctly before you create any tables and the view.</li>
+    <li>Verify that the view definition is deterministic.</li>
+    <li>Verify that the base table has the same owner as the view.</li>
+    <li>Create the view by using the WITH SCHEMABINDING option.</li>
+    <li>Create the unique clustered index on the view.</li>
+</ul>
+
+#!sql
+
+--Set the options to support indexed views.
+SET NUMERIC_ROUNDABORT OFF;
+SET ANSI_PADDING, ANSI_WARNINGS, CONCAT_NULL_YIELDS_NULL, ARITHABORT,
+   QUOTED_IDENTIFIER, ANSI_NULLS ON;
+--Create view with schemabinding.
+IF OBJECT_ID ('Sales.vOrders', 'view') IS NOT NULL
+   DROP VIEW Sales.vOrders ;
+GO
+CREATE VIEW Sales.vOrders
+   WITH SCHEMABINDING
+   AS  
+      SELECT SUM(UnitPrice*OrderQty*(1.00-UnitPriceDiscount)) AS Revenue,
+         OrderDate, ProductID, COUNT_BIG(*) AS COUNT
+      FROM Sales.SalesOrderDetail AS od, Sales.SalesOrderHeader AS o
+      WHERE od.SalesOrderID = o.SalesOrderID
+      GROUP BY OrderDate, ProductID;
+GO
+--Create an index on the view.
+CREATE UNIQUE CLUSTERED INDEX IDX_V1
+   ON Sales.vOrders (OrderDate, ProductID);
+GO

@@ -1,0 +1,182 @@
+#!markdown
+
+# SQL Server Performances
+
+#!markdown
+
+## Reference
+
+#!markdown
+
+- [SQL Code Smells Rules](https://www.sqlshack.com/sql-code-smells-rules)
+- [Index Scans And Table Scans](https://www.mssqltips.com/sqlservertutorial/277/index-scans-and-table-scans)
+
+#!markdown
+
+## Avoid Code Smells
+
+#!markdown
+
+### 1. Avoid `Select *`
+
+#!sql
+
+-- SELECT * FROM dbo.Employees
+
+SELECT [Id], [FirstName], [LastName], [Role], [Type] FROM dbo.Employees
+
+#!markdown
+
+### 2. Avoid <code>Select Top(n)...</code> with out <code>Order by</code>
+
+#!sql
+
+-- SELECT TOP (10) [GuidId], [EmployeeName] FROM dbo.Employees
+
+SELECT TOP (10) [GuidId], [EmployeeName] FROM dbo.Employees ORDER BY [EmployeeName] ASC
+
+#!markdown
+
+### 3. Avoid using column numbers in <code>ORDER BY</code> clause
+
+#!sql
+
+-- SELECT [Id], [FirstName], [LastName], [Role], [Type] FROM dbo.Employees ORDER BY 2 ASC
+
+SELECT [Id], [FirstName], [LastName], [Role], [Type] FROM dbo.Employees ORDER BY [FirstName] ASC
+
+#!markdown
+
+### 4.  Avoid functions on the left side of <code>search condition</code>
+
+#!sql
+
+-- SELECT [Id], [FirstName], [LastName] FROM dbo.Employees WHERE LEFT([FirstName], 2) = 'Jo'
+
+SELECT [Id], [FirstName], [LastName] FROM dbo.Employees WHERE [FirstName] LIKE 'Jo%'
+
+#!sql
+
+-- SELECT [Id], [Type], [Message] FROM dbo.Logs WHERE DATEDIFF(day, [CreatedOn], GETDATE()) < 30 ORDER BY [CreatedOn] DESC
+
+SELECT [Id], [Type], [Message] FROM dbo.Logs WHERE [CreatedOn] > DATEADD(day, -30, GETDATE()) ORDER BY [CreatedOn] DESC
+
+#!markdown
+
+### 5. Avoid <code>OR</code> operator in <code>WHERE / JOIN</code> clause
+
+#!sql
+
+-- SELECT so.SalesOrderDetailID, so.OrderQty, so.UnitPrice, p.ProductID, p.ProductNumber, p.[Name] FROM Sales.SalesOrderDetail so
+-- 	INNER JOIN Production.Product p ON so.ProductID = p.ProductID OR so.rowguid = p.rowguid
+-- ORDER BY ProductID ASC;
+-- GO
+
+SELECT so.SalesOrderDetailID, so.OrderQty, so.UnitPrice, p.ProductID, p.ProductNumber, p.[Name] FROM Sales.SalesOrderDetail so
+	INNER JOIN Production.Product p ON so.ProductID = p.ProductID
+
+UNION
+
+SELECT so.SalesOrderDetailID, so.OrderQty, so.UnitPrice, p.ProductID, p.ProductNumber, p.[Name] FROM Sales.SalesOrderDetail so
+	INNER JOIN Production.Product p ON so.rowguid = p.rowguid
+
+ORDER BY ProductID ASC;
+
+GO
+
+#!markdown
+
+### 6. Use <code>Exists()</code> instead of <code>Count()</code> for checking existing data
+
+#!sql
+
+SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Employees WHERE [Score] > 70) > 0 THEN 1 ELSE 0 END
+
+SELECT CASE WHEN EXISTS(SELECT NULL AS [Empty] FROM dbo.Employees WHERE [Score] > 70) THEN 1 ELSE 0 END
+
+#!markdown
+
+### 7. Avoid implicit conversions
+
+#!sql
+
+-- SELECT [Id], [Name] FROM dbo.Employees WHERE [Score] like '10%'
+
+#!markdown
+
+### 8. Avoid Table or Index scan in queries
+
+#!sql
+
+SELECT [SaleOrderDetailId], [UnitPrice] FROM [Sales].SalesOrderDetailDemo WHERE UnitPrice > 1000
+
+#!markdown
+
+<img style="max-width: 1200px" src="imgs/performances/tableScan.png"></img>
+
+#!sql
+
+SELECT [SaleOrderDetailId], [UnitPrice] FROM [Sales].SalesOrderDetail WHERE UnitPrice > 1000
+
+#!markdown
+
+<img style="max-width: 1200px" src="imgs/performances/indexScan.png"></img>
+
+#!markdown
+
+### 9. Include <code>SET NOCOUNT ON</code> in queries
+
+#!markdown
+
+### 10. Include the <code>SCHEMA</code> with tables
+
+#!markdown
+
+### 11. Use <code>Join</code> instead of correlated sub-queries
+
+#!sql
+
+-- SELECT [Id], [Name], [Experiment] FROM dbo.Employees AS emp WHERE [RoleId] IN (SELECT Id FROM dbo.Roles WHERE [RequiredExperiment] < emp.[Experiment])
+
+SELECT [Id], [Name], [Experiment] FROM dbo.Employees AS emp JOIN dbo.Roles as r ON emp.[RoleId] = r.Id WHERE r.[RequiredExperiment] < emp.Experiment
+
+#!markdown
+
+### 12. Reduce number of queries per session if possible
+
+#!markdown
+
+### 13. Temporarily disable <code>Indexes</code> for a large <code>Insert</code> operations
+
+#!markdown
+
+### 14. Use loops to minimize locking on large <code>Update</code> or <code>Delete</code> operations
+
+#!sql
+
+DECLARE @Date DATE = DATEADD(day, -7, GETDATE())
+DECLARE @BatchSize INT = 5000;
+
+WHILE (1 = 1)
+BEGIN
+	DELETE TOP (@BatchSize) FROM dbo.Logs WHERE [CreatedOn] < DATEADD(day, -7, GETDATE())
+
+	IF @@ROWCOUNT = 0
+		BREAK
+END
+
+#!sql
+
+DECLARE @AffectedRow INT;
+DECLARE @BatchSize INT = 5000;
+
+SET @AffectedRow = @BatchSize;
+
+WHILE @AffectedRow = @BatchSize
+BEGIN
+    UPDATE TOP (@BatchSize) dbo.Logs
+	SET [Type] = 'Trace'
+	WHERE [EntityType] = 'DevelopTerminal'
+    
+	SET @AffectedRow = @@ROWCOUNT
+END

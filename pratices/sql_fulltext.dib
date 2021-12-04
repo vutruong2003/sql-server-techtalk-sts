@@ -1,0 +1,315 @@
+#!markdown
+
+# SQL Server Full-Text Search
+
+#!markdown
+
+[Full-Text Search on Microsoft Docs](https://docs.microsoft.com/en-us/sql/relational-databases/search/full-text-search)
+
+#!markdown
+
+### Initialize infrastructure 
+
+#!csharp
+
+#r "nuget:Microsoft.DotNet.Interactive.SqlServer,*-*"
+
+#!csharp
+
+#!connect mssql --kernel-name testDataBase "Persist Security Info=False; Integrated Security=true; Initial Catalog=AdventureWorks2019; Server=."
+
+#!markdown
+
+### Check if full-text search is supported
+
+#!sql
+
+#!sql-testDataBase
+SELECT SERVERPROPERTY('IsFullTextInstalled') as [IsSupported]
+
+#!sql
+
+#!sql-testDataBase
+EXEC sp_help_fulltext_system_components 'filter';  
+
+#!markdown
+
+### How it works
+
+#!markdown
+
+```
+**D1** = 'This is text notes'
+**D2** = 'This is books'
+**D3** = 'full text books'
+```
+
+#!markdown
+
+```
+"this" => { D1, D2 }
+"is" => { D1, D2 }
+"text" => { D1, D3 }
+"notes" => { D1 }
+"books" => { D2, D3 }
+"full" => { D3 }
+```
+
+#!markdown
+
+"this full notes" => **{ D1, D2 }** union **{ D3 }** union **{ D1 }**
+
+#!sql
+
+#!sql-testDataBase
+SELECT TOP 100 * FROM  sys.dm_fts_index_keywords_by_document(DB_ID('AdventureWorks2019'), OBJECT_ID('production.ProductDescription'))
+
+#!markdown
+
+### Create full-text catalog
+
+#!sql
+
+CREATE FULLTEXT CATALOG production_catalog;  
+GO  
+
+#!markdown
+
+### Create full-text index
+
+#!sql
+
+CREATE FULLTEXT INDEX ON Production.ProductReview  
+ (   
+  ReviewerName  
+     Language 1033,  
+  EmailAddress  
+     Language 1033,  
+  Comments   
+     Language 1033       
+ )   
+  KEY INDEX PK_ProductReview_ProductReviewID   
+      ON production_catalog;   
+GO  
+
+#!markdown
+
+### Alter full-text
+
+#!sql
+
+ALTER FULLTEXT INDEX ON Production.Document   
+   SET SEARCH PROPERTY LIST DocumentPropertyList;   
+GO  
+
+ALTER FULLTEXT INDEX ON HumanResources.JobCandidate  
+   SET CHANGE_TRACKING MANUAL;  
+GO
+
+#!markdown
+
+### Delete full-text
+
+#!sql
+
+DROP FULLTEXT INDEX ON Production.ProductReview  
+
+#!markdown
+
+### Related information
+
+#!markdown
+
+#### 1. List of supported languages
+
+#!sql
+
+#!sql-testDataBase
+SELECT * 
+FROM sys.fulltext_languages  
+ORDER BY lcid
+
+#!markdown
+
+#### 2. Tracking full-text index fragments
+
+#!sql
+
+WITH FragmentationDetails
+AS (
+	SELECT 
+		table_id,
+        COUNT(*) AS FragmentsCount,
+        CONVERT(DECIMAL(9,2), SUM(data_size/(1024.*1024.))) AS IndexSizeMb,
+        CONVERT(DECIMAL(9,2), MAX(data_size/(1024.*1024.))) AS largest_fragment_mb
+    FROM sys.fulltext_index_fragments
+    GROUP BY table_id
+)
+SELECT 
+	DB_NAME()				AS DatabaseName,
+	ftc.fulltext_catalog_id AS CatalogId, 
+	ftc.[name]				AS CatalogName, 
+	fti.change_tracking_state AS ChangeTrackingState,
+    fti.object_id				AS BaseObjectId, 
+	QUOTENAME(OBJECT_SCHEMA_NAME(fti.object_id)) + '.' + QUOTENAME(OBJECT_NAME(fti.object_id)) AS BaseObjectName,
+	f.IndexSizeMb		    AS IndexSizeMb, 
+	f.FragmentsCount    	AS FragmentsCount, 
+	f.largest_fragment_mb   AS IndexLargestFragmentMb,
+	f.IndexSizeMb - f.largest_fragment_mb AS IndexFragmentationSpaceMb,
+    CASE
+		WHEN f.IndexSizeMb = 0 THEN 0
+		ELSE 
+			100.0 * (f.IndexSizeMb - f.largest_fragment_mb) / f.IndexSizeMb
+	END AS IndexFragmentationPct
+FROM 
+	sys.fulltext_catalogs ftc
+JOIN 
+	sys.fulltext_indexes fti
+ON 
+	fti.fulltext_catalog_id = ftc.fulltext_catalog_id
+JOIN FragmentationDetails f
+    ON f.table_id = fti.object_id;
+    
+GO
+
+#!markdown
+
+#### 3. List of Full-Text indexes in a particular database
+
+#!sql
+
+SELECT 
+    SCHEMA_NAME(tbl.schema_id) as SchemaName,
+    tbl.name AS TableName, 
+    FT_ctlg.name AS FullTextCatalogName,
+    i.name AS UniqueIndexName,
+    scols.name AS IndexedColumnName
+FROM 
+    sys.tables tbl
+INNER JOIN 
+    sys.fulltext_indexes FT_idx 
+ON 
+    tbl.[object_id] = FT_idx.[object_id] 
+INNER JOIN 
+    sys.fulltext_index_columns FT_idx_cols
+ON 
+    FT_idx_cols.[object_id] = tbl.[object_id]
+INNER JOIN
+    sys.columns scols
+ON 
+        FT_idx_cols.column_id = scols.column_id
+    AND FT_idx_cols.[object_id] = scols.[object_id]
+INNER JOIN 
+    sys.fulltext_catalogs FT_ctlg
+ON 
+    FT_idx.fulltext_catalog_id = FT_ctlg.fulltext_catalog_id
+INNER JOIN 
+    sys.indexes i
+ON 
+        FT_idx.unique_index_id = i.index_id
+    AND FT_idx.[object_id] = i.[object_id];
+
+#!markdown
+
+### Query
+
+#!markdown
+
+#### 1. CONTAINS
+
+#!markdown
+
+	
+Searches for precise or fuzzy (less precise) matches to single words and phrases, words within a certain distance of one another, or weighted matches in SQL Server.
+
+Appropriate types of lookups:
+
+- Word or phrase
+- Prefix
+- A word near another
+- Synonyms
+
+#!sql
+
+#!sql-testDataBase
+SELECT Top 100 [ProductDescriptionID] ,[Description] ,[rowguid] ,[ModifiedDate]
+  FROM production.[ProductDescription]
+  WHERE CONTAINS ([Description], 'bike or steel')
+  -- WHERE [Description] LIKE '%velo%'
+
+#!markdown
+
+#### 2. FREETEXT
+
+#!markdown
+
+Searches for values that match the meaning and not just the exact wording of the words in the search condition.
+
+This function will:
+
+- Tokenize its lookup text in the same way a Full-Text index is populated (using word breaking and stemming, removing stop words). Each token is assigned a weight.
+then it will generate a list of expansions and replacement keywords based on the thesaurus.
+- Finally, it will compare the list of keywords in the Full-Text index and those that it listed in order to generate a Boolean value that will be returned.
+
+#!sql
+
+#!sql-testDataBase
+SELECT Top 100 [ProductDescriptionID] ,[Description] ,[rowguid] ,[ModifiedDate]
+  FROM production.[ProductDescription]
+  WHERE FREETEXT ([Description], 'bike steel')
+
+#!markdown
+
+#### 3. CONTAINSTABLE
+
+#!markdown
+
+	
+Same lookup as CONTAINS function except that it returns a table of rows with following columns:
+
+- **KEY**: the values for matching key columns in a Full-Text indexed table
+- **RANK**: the RANK column is a value (from 0 through 1000) for each row indicating how well a row matched the selection criteria.
+
+#!sql
+
+#!sql-testDataBase
+SELECT *
+  FROM CONTAINSTABLE(production.[ProductDescription], [Description], 'bike or steel') 
+  ORDER BY RANK DESC
+
+#!sql
+
+#!sql-testDataBase
+SELECT Top 100 [ProductDescriptionID] ,[Description] ,[rowguid] ,[ModifiedDate], r.[RANK]
+  FROM production.[ProductDescription] p
+	INNER JOIN  (
+	SELECT [KEY], [RANK]
+	  FROM CONTAINSTABLE(production.[ProductDescription], [Description], 'bike or steel') 
+	) as r ON p.[ProductDescriptionID] = r.[KEY]
+ORDER BY r.RANK DESC
+
+#!markdown
+
+#### 4. FREETEXTTABLE
+
+#!markdown
+
+Returns a table of zero, one, or more rows for those columns containing character-based data types for values that match the meaning, but not the exact wording, of the text in the specified column.
+
+#!sql
+
+#!sql-testDataBase
+SELECT *
+  FROM FREETEXTTABLE(production.[ProductDescription], [Description], 'bike or steel') 
+  ORDER BY RANK DESC
+
+#!sql
+
+#!sql-testDataBase
+SELECT Top 100 [ProductDescriptionID] ,[Description] ,[rowguid] ,[ModifiedDate], r.[RANK]
+  FROM production.[ProductDescription] p
+	INNER JOIN  (
+	SELECT [KEY], [RANK]
+	  FROM FREETEXTTABLE(production.[ProductDescription], [Description], 'bike or steel') 
+	) as r ON p.[ProductDescriptionID] = r.[KEY]
+ORDER BY r.RANK DESC
